@@ -17,6 +17,8 @@ Análise de **1 milhão de vendas reais** de uma loja online do Reino Unido (200
 
 - **24% dos clientes (os "Campeões") geram 70% da receita líquida.** Na mediana, compraram há 17 dias e já fizeram 11 pedidos.
 - **711 clientes "Em risco" valem £ 1,4 milhão:** compravam com frequência, mas não voltam há cerca de um ano. É a lista prioritária para uma ação de reativação.
+- **Só 1 em cada 5 clientes novos volta no mês seguinte** (21%), e 29% nunca voltam a comprar. Quem passa dessa fase, porém, continua: a retenção fica perto de 18% mesmo depois de um ano.
+- **Clientes de Natal voltam no Natal seguinte:** quem estreia entre setembro e novembro quase não compra nos meses seguintes (10–14%), mas 19–25% voltam 12 meses depois.
 - **22% dos produtos geram 80% da receita** (1.030 de 4.738 itens). Na outra ponta, metade do catálogo (classe C) soma só 5% da receita.
 - **A loja quase não vende aos sábados** e concentra os pedidos de terça a quinta. É um comportamento típico de **atacado**: muitos clientes são lojistas que revendem os produtos.
 - **Sazonalidade forte de Natal:** em novembro a receita chega a **2,2 vezes** a média mensal do primeiro semestre.
@@ -47,6 +49,26 @@ Cada cliente recebe uma nota de 1 a 5 em **Recência** (dias desde a última com
 - **Gasto líquido, não bruto.** Alguns clientes compraram e cancelaram tudo no mesmo dia: o cliente 16446 comprou £ 168 mil e devolveu £ 168 mil. Sem descontar as devoluções, ele apareceria como um dos maiores clientes.
 - **Frequência em faixas fixas** (1, 2, 3–4, 5–9 e 10+ pedidos), e não em quintis: 28% dos clientes compraram uma única vez, e a divisão automática colocaria clientes empatados em notas diferentes por acaso.
 
+## 🔁 Retenção por coorte
+
+Uma **coorte** é o grupo de clientes que fez a primeira compra no mesmo mês. A tabela mostra que % de cada coorte de 2010 voltou a comprar 1, 2, 3... meses depois ([`sql/05_coorte.sql`](sql/05_coorte.sql)).
+
+| Coorte | Clientes | Mês 1 | Mês 2 | Mês 3 | Mês 6 | Mês 9 | Mês 12 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2010-01 | 368 | 21,5% | 32,1% | 31,5% | 26,9% | 32,6% | 22,8% |
+| 2010-03 | 441 | 19,0% | 23,1% | 24,3% | 24,7% | 10,9% | 20,0% |
+| 2010-06 | 267 | 17,6% | 18,7% | 20,6% | 12,7% | 11,2% | 15,0% |
+| 2010-09 | 239 | 23,0% | 23,4% | 13,0% | 13,8% | 13,0% | 22,6% |
+| 2010-11 | 326 | 17,5% | 9,5% | 9,5% | 12,9% | 9,2% | **25,2%** |
+
+A matriz completa, com todas as coortes, fica em [`resultados/`](resultados/).
+
+**Cuidados de método:**
+
+- **Dezembro de 2009 fica fora das comparações.** A base começa nesse mês, então ali aparecem 951 "clientes novos", quase 3 vezes a média, porque clientes antigos parecem estrear junto com a base.
+- **Dezembro de 2011 fica fora** porque tem só 9 dias de dados.
+- **Na curva média, coortes sem compra em algum mês contam como 0%**, e cada coorte só entra nos meses que já teve tempo de alcançar.
+
 ## 🧹 Qualidade dos dados
 
 A base bruta tem 1.067.371 linhas. Antes de analisar, o arquivo [`sql/00_qualidade.sql`](sql/00_qualidade.sql) encontrou:
@@ -69,12 +91,13 @@ A limpeza em [`sql/01_limpeza.sql`](sql/01_limpeza.sql) mantém **94% das linhas
 │   ├── 01_limpeza.sql     <- Cria as tabelas vendas, devolucoes e produtos
 │   ├── 02_visao_geral.sql <- Indicadores, evolução mensal, dia da semana e países
 │   ├── 03_curva_abc.sql   <- Curva ABC com funções de janela
-│   └── 04_rfm.sql         <- Segmentação RFM de clientes (recência, frequência e valor)
+│   ├── 04_rfm.sql         <- Segmentação RFM de clientes (recência, frequência e valor)
+│   └── 05_coorte.sql      <- Coortes mensais e curva de retenção
 ├── resultados/            <- CSV gerados pelas consultas
 └── requirements.txt
 ```
 
-**Técnicas de SQL usadas:** CTEs (`WITH`), funções de janela (`SUM() OVER`, `ROW_NUMBER`, `LAG`, `NTILE`), `CASE WHEN`, agregações com `FILTER`, `DISTINCT` para remover duplicadas e expressões regulares.
+**Técnicas de SQL usadas:** CTEs (`WITH`), funções de janela (`SUM() OVER`, `ROW_NUMBER`, `LAG`, `NTILE`, `FIRST_VALUE` com `PARTITION BY`), tabela cruzada com agregação condicional (`MAX(CASE WHEN ...)`), `CASE WHEN`, agregações com `FILTER`, `DISTINCT` para remover duplicadas e expressões regulares.
 
 ## 🔁 Como reproduzir
 
@@ -106,7 +129,7 @@ O DuckDB não precisa de servidor: o banco é o arquivo `data/varejo.duckdb`. O 
 - [x] Visão geral do negócio
 - [x] Curva ABC de produtos
 - [x] Segmentação RFM de clientes
-- [ ] Coorte e retenção mensal (`05_coorte.sql`)
+- [x] Coorte e retenção mensal
 - [ ] Devoluções por produto (`06_devolucoes.sql`)
 - [ ] Dashboard em Power BI
 - [ ] Conclusões e recomendações para o negócio
