@@ -1,0 +1,11 @@
+# Dados brutos e banco (gerados por carregar_dados.py)
+data/
+
+# Python
+__pycache__/
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Configuração local do Claude Code
+.claude/
