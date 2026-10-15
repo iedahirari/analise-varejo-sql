@@ -6,19 +6,37 @@
 --   B -> os próximos 15% (até 95%)
 --   C -> os últimos 5%
 -- Técnica principal: SUM() OVER (ORDER BY ...) para o acumulado (função de janela).
+-- A receita é LÍQUIDA (vendas menos devoluções): dois pedidos gigantes foram
+-- cancelados inteiros e, sem descontar, colocariam produtos falsos no top 10.
 -- Rodar: python rodar_sql.py sql/03_curva_abc.sql --csv
 -- =============================================================================
 
 -- nome: Classificação ABC por produto
 CREATE OR REPLACE TABLE curva_abc AS
-WITH por_produto AS (
+WITH vendido AS (
     SELECT
         codigo_produto,
-        SUM(receita)            AS receita,
+        SUM(receita)            AS receita_bruta,
         SUM(quantidade)         AS unidades,
         COUNT(DISTINCT fatura)  AS pedidos
     FROM vendas
     GROUP BY codigo_produto
+),
+devolvido AS (
+    SELECT codigo_produto, SUM(valor_devolvido) AS valor_devolvido
+    FROM devolucoes
+    GROUP BY codigo_produto
+),
+por_produto AS (
+    SELECT
+        v.codigo_produto,
+        v.receita_bruta - COALESCE(d.valor_devolvido, 0)   AS receita,   -- receita líquida
+        v.unidades,
+        v.pedidos
+    FROM vendido v
+    LEFT JOIN devolvido d USING (codigo_produto)
+    -- produtos com receita líquida zero ou negativa (tudo devolvido) ficam fora da curva
+    WHERE v.receita_bruta - COALESCE(d.valor_devolvido, 0) > 0
 ),
 acumulado AS (
     SELECT
