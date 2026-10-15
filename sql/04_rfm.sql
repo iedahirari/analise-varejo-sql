@@ -52,8 +52,10 @@ notas AS (
         *,
         -- Recência e valor: quintis (cada nota fica com ~20% dos clientes).
         -- Recência é "quanto menor, melhor", por isso ordena do maior para o menor.
-        NTILE(5) OVER (ORDER BY recencia_dias DESC)     AS nota_r,
-        NTILE(5) OVER (ORDER BY monetario ASC)          AS nota_m,
+        -- O id_cliente desempata: sem ele, clientes empatados (ex.: mesma recência)
+        -- podem cair em notas diferentes a cada execução.
+        NTILE(5) OVER (ORDER BY recencia_dias DESC, id_cliente)  AS nota_r,
+        NTILE(5) OVER (ORDER BY monetario ASC, id_cliente)       AS nota_m,
         -- Frequência: faixas fixas. 28% dos clientes compraram uma única vez;
         -- com NTILE, clientes empatados cairiam em notas diferentes por acaso.
         CASE

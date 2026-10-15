@@ -19,14 +19,16 @@ Análise de **1 milhão de vendas reais** de uma loja online do Reino Unido (200
 - **711 clientes "Em risco" valem £ 1,4 milhão:** compravam com frequência, mas não voltam há cerca de um ano. É a lista prioritária para uma ação de reativação.
 - **Só 1 em cada 5 clientes novos volta no mês seguinte** (21%), e 29% nunca voltam a comprar. Quem passa dessa fase, porém, continua: a retenção fica perto de 18% mesmo depois de um ano.
 - **Clientes de Natal voltam no Natal seguinte:** quem estreia entre setembro e novembro quase não compra nos meses seguintes (10–14%), mas 19–25% voltam 12 meses depois.
-- **22% dos produtos geram 80% da receita** (1.030 de 4.738 itens). Na outra ponta, metade do catálogo (classe C) soma só 5% da receita.
+- **22% dos produtos geram 80% da receita líquida** (1.038 de 4.689 itens). Na outra ponta, metade do catálogo (classe C) soma só 5% da receita e tem o dobro da taxa de devolução (4,4% contra 2,3%).
+- **Os cordões de luz "Cherry Lights" voltam demais:** as três cores foram devolvidas 59 a 124 vezes, com taxas de 30% a 36%. É um forte indício de defeito para investigar com o fornecedor.
 - **A loja quase não vende aos sábados** e concentra os pedidos de terça a quinta. É um comportamento típico de **atacado**: muitos clientes são lojistas que revendem os produtos.
 - **Sazonalidade forte de Natal:** em novembro a receita chega a **2,2 vezes** a média mensal do primeiro semestre.
 - **2011 ficou estável:** a receita de janeiro a novembro cresceu só 3% contra 2010, com **4% menos pedidos**, compensados por um ticket médio **7% maior**.
 
 | Indicador | Valor |
 | --- | --- |
-| Receita (mercadorias, dez/2009 a dez/2011) | £ 19,6 milhões |
+| Receita bruta (mercadorias, dez/2009 a dez/2011) | £ 19,6 milhões |
+| Devoluções | £ 716 mil (3,7% das vendas) |
 | Pedidos | 39.516 |
 | Clientes identificados | 5.852 em 41 países |
 | Ticket médio por pedido | £ 497 |
@@ -69,6 +71,22 @@ A matriz completa, com todas as coortes, fica em [`resultados/`](resultados/).
 - **Dezembro de 2011 fica fora** porque tem só 9 dias de dados.
 - **Na curva média, coortes sem compra em algum mês contam como 0%**, e cada coorte só entra nos meses que já teve tempo de alcançar.
 
+## ↩️ Devoluções
+
+As devoluções somam **£ 716 mil (3,7% das vendas)**, mas esse número esconde duas armadilhas ([`sql/06_devolucoes.sql`](sql/06_devolucoes.sql)):
+
+- **Dois cancelamentos gigantes respondem por 34% de todo o valor devolvido.** Foram pedidos de 80.995 e 74.215 unidades de um único produto, cancelados inteiros logo depois. Parecem erro de lançamento, não devolução de cliente. Sem eles, a taxa de devolução cai para **2,4%**.
+- **Cerca de 1/3 do valor restante parece correção de pedido:** o mesmo cliente comprou a mesma quantidade do mesmo produto até 1 dia antes ou depois da "devolução". Por isso, o ranking de produtos só considera itens devolvidos em pelo menos 5 pedidos diferentes, que é sinal de problema recorrente.
+
+| Produto | Vendidos | Devolvidos | Taxa | Vezes devolvido |
+| --- | ---: | ---: | ---: | ---: |
+| WHITE CHERRY LIGHTS | 3.004 | 1.088 | 36,2% | 124 |
+| LIGHT PINK CHERRY LIGHTS | 1.433 | 458 | 32,0% | 59 |
+| PINK CHERRY LIGHTS | 2.281 | 693 | 30,4% | 86 |
+| TEA TIME PARTY BUNTING | 6.013 | 1.635 | 27,2% | 11 |
+
+**Correção feita durante a análise:** a primeira versão da curva ABC usava a receita bruta e colocava no top 10 dois produtos que foram vendidos e devolvidos inteiros (um deles com £ 168 mil vendidos e £ 168 mil devolvidos). A curva agora usa a receita líquida.
+
 ## 🧹 Qualidade dos dados
 
 A base bruta tem 1.067.371 linhas. Antes de analisar, o arquivo [`sql/00_qualidade.sql`](sql/00_qualidade.sql) encontrou:
@@ -86,18 +104,21 @@ A limpeza em [`sql/01_limpeza.sql`](sql/01_limpeza.sql) mantém **94% das linhas
 ```text
 ├── carregar_dados.py      <- Baixa a planilha da UCI e carrega no DuckDB (tabela vendas_brutas)
 ├── rodar_sql.py           <- Executa um arquivo .sql e mostra/salva os resultados
+├── exportar_powerbi.py    <- Exporta o modelo estrela (fatos e dimensões) em Parquet para o Power BI
+├── powerbi/GUIA.md        <- Passo a passo do dashboard: relacionamentos, medidas DAX e páginas
 ├── sql/
 │   ├── 00_qualidade.sql   <- Diagnóstico: nulos, duplicadas, cancelamentos, códigos estranhos
 │   ├── 01_limpeza.sql     <- Cria as tabelas vendas, devolucoes e produtos
 │   ├── 02_visao_geral.sql <- Indicadores, evolução mensal, dia da semana e países
-│   ├── 03_curva_abc.sql   <- Curva ABC com funções de janela
+│   ├── 03_curva_abc.sql   <- Curva ABC com funções de janela (receita líquida)
 │   ├── 04_rfm.sql         <- Segmentação RFM de clientes (recência, frequência e valor)
-│   └── 05_coorte.sql      <- Coortes mensais e curva de retenção
+│   ├── 05_coorte.sql      <- Coortes mensais e curva de retenção
+│   └── 06_devolucoes.sql  <- Taxa de devolução por produto, classe ABC e mês
 ├── resultados/            <- CSV gerados pelas consultas
 └── requirements.txt
 ```
 
-**Técnicas de SQL usadas:** CTEs (`WITH`), funções de janela (`SUM() OVER`, `ROW_NUMBER`, `LAG`, `NTILE`, `FIRST_VALUE` com `PARTITION BY`), tabela cruzada com agregação condicional (`MAX(CASE WHEN ...)`), `CASE WHEN`, agregações com `FILTER`, `DISTINCT` para remover duplicadas e expressões regulares.
+**Técnicas de SQL usadas:** CTEs (`WITH`), funções de janela (`SUM() OVER`, `ROW_NUMBER`, `LAG`, `NTILE`, `FIRST_VALUE` com `PARTITION BY`), tabela cruzada com agregação condicional (`MAX(CASE WHEN ...)`), `CASE WHEN`, agregações com `FILTER`, `DISTINCT` para remover duplicadas, `EXISTS` com subconsulta correlacionada, `VIEW` e expressões regulares.
 
 ## 🔁 Como reproduzir
 
@@ -130,8 +151,9 @@ O DuckDB não precisa de servidor: o banco é o arquivo `data/varejo.duckdb`. O 
 - [x] Curva ABC de produtos
 - [x] Segmentação RFM de clientes
 - [x] Coorte e retenção mensal
-- [ ] Devoluções por produto (`06_devolucoes.sql`)
-- [ ] Dashboard em Power BI
+- [x] Devoluções por produto
+- [x] Exportação em modelo estrela para o Power BI
+- [ ] Dashboard em Power BI (roteiro pronto em [`powerbi/GUIA.md`](powerbi/GUIA.md))
 - [ ] Conclusões e recomendações para o negócio
 
 ## 📄 Dados
