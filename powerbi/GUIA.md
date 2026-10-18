@@ -2,6 +2,70 @@
 
 Passo a passo para montar o dashboard a partir das tabelas exportadas pelo SQL. Ao final, salve o arquivo como `powerbi/dashboard_varejo.pbix`.
 
+Há dois caminhos:
+
+- **Power BI Desktop** (Windows): modelo estrela completo, com medidas DAX. Seções 1 a 8.
+- **Power BI na web** (app.powerbi.com, qualquer sistema): tabelas já agregadas pelo SQL, sem DAX. Seção 0, logo abaixo. **O dashboard publicado do projeto foi feito por este caminho.**
+
+## 0. Caminho web (app.powerbi.com)
+
+A versão web só aceita CSV e Excel, então o script gera tabelas pequenas e já calculadas:
+
+```bash
+python exportar_powerbi.py --web
+```
+
+Os arquivos ficam em `data/powerbi_web/`, separados por **ponto e vírgula** e com **vírgula decimal** (padrão brasileiro):
+
+| Arquivo | Conteúdo | Visual |
+| --- | --- | --- |
+| `indicadores.csv` | 1 linha com os totais (receita, pedidos, clientes, ticket, taxa de devolução) | Cartões |
+| `vendas_diarias.csv` | receita, pedidos e unidades por dia e país, até nov/2011 | Linha mensal e dia da semana |
+| `clientes_rfm.csv` | 1 linha por cliente com segmento e gasto líquido | Barras por segmento |
+| `coortes.csv` | retenção por coorte e mês de vida (1 a 12) | Matriz de calor |
+| `produtos.csv` | curva ABC e valor devolvido por produto (sem os 2 cancelamentos gigantes) | Top 10 devoluções |
+| `devolucoes_mensais.csv` | taxa de devolução por mês | (reserva para uma 2ª página) |
+
+### Importar
+
+1. **Meu workspace → Novo item → Modelo semântico → Obter dados → Arquivo de texto/CSV**, envie os 6 arquivos de uma vez.
+2. Antes de criar o modelo, confira no Power Query se os números decimais vieram certos (ex.: `497,07`, não `49707`).
+
+> ⚠️ **Armadilha do separador decimal.** A interface em português lê vírgula como decimal, mas a **atualização no serviço** pode usar a cultura `en-US` e ler `18925714,33` como dezoito bilhões. A correção é fixar a cultura no passo de tipos de cada tabela. Na **exibição TMDL** do modelo (ou no Power Query), troque o final do passo `Table.TransformColumnTypes(...)` de `}})` para `}}, "pt-BR")`. Depois, **Atualizar agora**.
+
+Para conferir sem montar visual, use a **exibição de consulta DAX** do modelo:
+
+```dax
+EVALUATE
+ROW (
+    "receita_liquida", SUM ( indicadores[receita_liquida] ),
+    "ticket", SUM ( indicadores[ticket_medio] ),
+    "taxa", SUM ( indicadores[taxa_devolucao] ),
+    "vendas_diarias", SUM ( vendas_diarias[receita] )
+)
+```
+
+Deve retornar 18.925.714,33 · 497,07 · 0,0365 · 19.027.652,67 (vendas até nov/2011).
+
+### Página executiva (1920 × 1080)
+
+| Visual | Campos | Ajustes |
+| --- | --- | --- |
+| Cartão (novo), topo | `indicadores`: receita_liquida, pedidos, clientes, ticket_medio, taxa_devolucao | Renomeie cada campo (clique duplo em **Valor**). Pedidos e clientes com **Exibir unidades = Nenhum**; taxa em porcentagem com 2 casas |
+| Linha | eixo `vendas_diarias[ano_mes]`, valor `receita` | **⋯ → Classificar por → ano_mes → ordem crescente** (o padrão ordena pelo valor e embaralha os meses) |
+| Colunas | eixo `vendas_diarias[dia_semana]`, valor `pedidos` | |
+| Barras | eixo `clientes_rfm[segmento]`, valor `gasto_liquido` | Rótulos de dados com 2 casas |
+| Matriz | linhas `coortes[coorte]` (sem hierarquia de datas, formato `yyyy-MM`), colunas `mes_de_vida`, valores `retencao` (**Máximo**, porcentagem) | Subtotais desligados; **Formatação condicional → Cor da tela de fundo** (branco → azul) |
+| Tabela | `produtos[descricao]`, `valor_devolvido`, `vezes_devolvido` | Filtro do visual **N superior = 10 por valor_devolvido**; clique no cabeçalho para ordenar |
+
+Use títulos que dizem a conclusão: "Receita mensal: pico de Natal em novembro", "Campeões geram 70% da receita", "Retenção por coorte: só 1 em cada 5 clientes novos volta no mês seguinte".
+
+**Dicas da versão web:**
+
+- Para tamanho e posição exatos, use **Formatar visual → Geral → Propriedades** em vez de arrastar.
+- Clicar numa barra ou linha de tabela **filtra os outros visuais**. Antes de salvar ou tirar print, clique de novo nela para limpar a seleção.
+- O formato `mmm/yyyy` aparece como `000/2010` na versão web em português. Use `yyyy-MM`.
+
 ## 1. Gerar os dados
 
 Na raiz do projeto (depois de rodar `sql/01` a `sql/06`):

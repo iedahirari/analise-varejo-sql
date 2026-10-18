@@ -13,6 +13,12 @@ Análise de **1 milhão de vendas reais** de uma loja online do Reino Unido (200
 3. **Quantos clientes voltam a comprar depois do primeiro pedido?** (análise de coorte e retenção)
 4. **Quais produtos mais voltam em devolução, e quanto isso custa?**
 
+## 📊 Dashboard
+
+![Dashboard executivo no Power BI](img/dashboard_executivo.png)
+
+Página executiva feita no Power BI web a partir das tabelas que o SQL gera. Arquivos: [`powerbi/dashboard_varejo.pbix`](powerbi/dashboard_varejo.pbix) (abre no Power BI Desktop) e [`powerbi/dashboard_varejo.pdf`](powerbi/dashboard_varejo.pdf). Passo a passo em [`powerbi/GUIA.md`](powerbi/GUIA.md).
+
 ## 📌 Primeiros resultados
 
 - **24% dos clientes (os "Campeões") geram 70% da receita líquida.** Na mediana, compraram há 17 dias e já fizeram 11 pedidos.
@@ -28,7 +34,7 @@ Análise de **1 milhão de vendas reais** de uma loja online do Reino Unido (200
 | Indicador | Valor |
 | --- | --- |
 | Receita bruta (mercadorias, dez/2009 a dez/2011) | £ 19,6 milhões |
-| Devoluções | £ 716 mil (3,7% das vendas) |
+| Devoluções | £ 716 mil (3,6% das vendas) |
 | Pedidos | 39.516 |
 | Clientes identificados | 5.852 em 41 países |
 | Ticket médio por pedido | £ 497 |
@@ -73,7 +79,7 @@ A matriz completa, com todas as coortes, fica em [`resultados/`](resultados/).
 
 ## ↩️ Devoluções
 
-As devoluções somam **£ 716 mil (3,7% das vendas)**, mas esse número esconde duas armadilhas ([`sql/06_devolucoes.sql`](sql/06_devolucoes.sql)):
+As devoluções somam **£ 716 mil (3,6% das vendas)**, mas esse número esconde duas armadilhas ([`sql/06_devolucoes.sql`](sql/06_devolucoes.sql)):
 
 - **Dois cancelamentos gigantes respondem por 34% de todo o valor devolvido.** Foram pedidos de 80.995 e 74.215 unidades de um único produto, cancelados inteiros logo depois. Parecem erro de lançamento, não devolução de cliente. Sem eles, a taxa de devolução cai para **2,4%**.
 - **Cerca de 1/3 do valor restante parece correção de pedido:** o mesmo cliente comprou a mesma quantidade do mesmo produto até 1 dia antes ou depois da "devolução". Por isso, o ranking de produtos só considera itens devolvidos em pelo menos 5 pedidos diferentes, que é sinal de problema recorrente.
@@ -104,8 +110,12 @@ A limpeza em [`sql/01_limpeza.sql`](sql/01_limpeza.sql) mantém **94% das linhas
 ```text
 ├── carregar_dados.py      <- Baixa a planilha da UCI e carrega no DuckDB (tabela vendas_brutas)
 ├── rodar_sql.py           <- Executa um arquivo .sql e mostra/salva os resultados
-├── exportar_powerbi.py    <- Exporta o modelo estrela (fatos e dimensões) em Parquet para o Power BI
-├── powerbi/GUIA.md        <- Passo a passo do dashboard: relacionamentos, medidas DAX e páginas
+├── exportar_powerbi.py    <- Exporta o modelo estrela em Parquet (Desktop) ou CSVs agregados com --web
+├── powerbi/
+│   ├── dashboard_varejo.pbix  <- Relatório do Power BI com os dados (abre no Power BI Desktop)
+│   ├── dashboard_varejo.pdf   <- Página executiva exportada
+│   └── GUIA.md                <- Passo a passo do dashboard: versão web e Desktop
+├── img/                   <- Print do dashboard usado neste README
 ├── sql/
 │   ├── 00_qualidade.sql   <- Diagnóstico: nulos, duplicadas, cancelamentos, códigos estranhos
 │   ├── 01_limpeza.sql     <- Cria as tabelas vendas, devolucoes e produtos
@@ -153,7 +163,7 @@ O DuckDB não precisa de servidor: o banco é o arquivo `data/varejo.duckdb`. O 
 - [x] Coorte e retenção mensal
 - [x] Devoluções por produto
 - [x] Exportação em modelo estrela para o Power BI
-- [ ] Dashboard em Power BI (roteiro pronto em [`powerbi/GUIA.md`](powerbi/GUIA.md))
+- [x] Dashboard executivo no Power BI web (passo a passo em [`powerbi/GUIA.md`](powerbi/GUIA.md))
 - [ ] Conclusões e recomendações para o negócio
 
 ## 📄 Dados
